@@ -1,7 +1,7 @@
 CC = gcc
 CFLAGS = -std=c99 -O2 -g2 -Wall
 LDFLAGS = -lpthread
-SOURCES = main.c other.c udp.c
+SOURCES = main.c other.c udp.c raw.c
 OBJECT_FILES = $(addprefix obj/, $(SOURCES:.c=.o))
 EXECUTABLE = sock
 

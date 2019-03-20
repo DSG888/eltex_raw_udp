@@ -13,6 +13,7 @@
 
 #include "other.h"
 #include "udp.h"
+#include "raw.h"
 
 #define server_key	"Ss"
 #define client_key	"Cc"

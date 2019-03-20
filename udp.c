@@ -23,7 +23,7 @@ int create_server_udp_socket(unsigned int ip, int port, int binding) {
 	return sock;
 }
 
-void* client_handler_udp(void *threadArgs) {
+/*void* client_handler_udp(void *threadArgs) {
 	pthread_detach(pthread_self());		// Guarantees that thread resources are deallocated upon return
 	
 	struct sockaddr_in echoServAddr;
@@ -65,7 +65,7 @@ void* client_handler_udp(void *threadArgs) {
 		continue;
 	}
 	return NULL;
-}
+}*/
 
 void* server_handler_udp(void *threadArgs) {
 	pthread_detach(pthread_self());		// Guarantees that thread resources are deallocated upon return
