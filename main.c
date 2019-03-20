@@ -4,7 +4,7 @@
 #define DST_IP      "172.16.8.10"  // IP назначения
 #define SRC_PORT    35120            // Порт источника
 #define DST_PORT    62000            // Порт назначения
-uint8_t smac[] = {0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa};   // MAC источника
+uint8_t smac[] = {0x94, 0xde, 0x80, 0x77, 0x13, 0xbf};   // MAC источника
 uint8_t dmac[] = {0x76, 0x27, 0xa0, 0xa0, 0x4a, 0x78};   // MAC назначения
 const uint8_t MSG[4] = {0xAA,0xAA,0,0};
 
@@ -59,7 +59,7 @@ int main(int argc, char * argv[]) {
 		if (sock == -1)
 			DieWithError("create RAW socket\n");
 			
-/*			
+		/*	
 int one = 1;
 const int *val = &one;
 if(setsockopt(sock, IPPROTO_IP, IP_HDRINCL, val, sizeof(one)) < 0) {
@@ -102,21 +102,28 @@ struct sockaddr_in sockstr;
 
 		// Отправка
 		memset(&addr, 0, sizeof(addr));
-		addr.sll_family = AF_PACKET;
+		addr.sll_family = AF_PACKET;//Always AF_PACKET. 
 		addr.sll_ifindex = 2;
 		addr.sll_halen = 6;
 		memcpy(addr.sll_addr, dmac, 6);
-
+/*
 //struct sockaddr_in sin;
 //sin.sin_family=AF_INET;
 //sin.sin_port = htons(SRC_PORT);
 //sin.sin_addr.s_addr = inet_addr(SRC_IP);
 
-
+	  // Filling server address structure. 
+	  struct sockaddr_in server_address;
+	  socklen_t server_length;
+	  server_length = sizeof(struct sockaddr_in);
+	  server_address.sin_family = AF_INET;
+	  server_address.sin_port = htons(DST_PORT);
+	  server_address.sin_addr.s_addr = inet_addr(DST_IP);*/
 
 		if (sendto(sock, data, psize, 0, (struct sockaddr *)&addr, sizeof(addr)) == -1) {
+	//	if (sendto(sock, data, psize, 0, (struct sockaddr *) &server_address, server_length) == -1) {
 		//sendto(sock,data,psize,0,(struct sockaddr *)&sin, sizeof(sin));
-			DieWithError("sendto\n");
+			DieWithError("error sendto\n");
 			close(sock);
 		}
 		free(data);

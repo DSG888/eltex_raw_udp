@@ -3,7 +3,7 @@
 int create_server_udp_socket(unsigned int ip, int port, int binding) {
 	int sock = -1;
 	struct sockaddr_in echoServAddr;
-	if ((sock = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0)
+	if ((sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0)
 		DieWithError("socket() failed");
 	memset(&echoServAddr, 0, sizeof(echoServAddr));
 	// Таймаут в 2 секунды на передачу
