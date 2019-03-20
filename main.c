@@ -1,11 +1,11 @@
 #include "main.h"
 
-#define SRC_IP      "172.16.8.100"  // IP источника
-#define DST_IP      "172.16.8.10"  // IP назначения
-#define SRC_PORT    35120            // Порт источника
-#define DST_PORT    62000            // Порт назначения
-uint8_t smac[] = {0x94, 0xde, 0x80, 0x77, 0x13, 0xbf};   // MAC источника
-uint8_t dmac[] = {0x76, 0x27, 0xa0, 0xa0, 0x4a, 0x78};   // MAC назначения
+#define SRC_IP "172.16.8.100"	// IP источника
+#define DST_IP "172.16.8.10"	// IP назначения
+#define SRC_PORT 35120			// Порт источника
+#define DST_PORT 62000			// Порт назначения
+uint8_t smac[] = {0x94, 0xde, 0x80, 0x77, 0x13, 0xbf};	// MAC источника
+uint8_t dmac[] = {0x76, 0x27, 0xa0, 0xa0, 0x4a, 0x78};	// MAC назначения
 const uint8_t MSG[4] = {0xAA,0xAA,0,0};
 
 int main(int argc, char * argv[]) {
@@ -50,28 +50,59 @@ int main(int argc, char * argv[]) {
 		//if (pthread_create(&thread_handler, NULL, client_handler_udp, &srv_args) < 0)
 		//	DieWithError("thread_create\n");
 		int sock;
-		struct sockaddr_ll addr;
 		uint8_t* data;
 		int psize = 0;  // Размер данных
 		
 		// Открытие RAW сокета	//AF_INET	//AF_PACKET
-		sock = socket(AF_PACKET, SOCK_RAW, IPPROTO_UDP);
-		if (sock == -1)
+		#ifndef DATALINK	// Если не нужно заполнять канальный уровень
+		if ((sock = socket(AF_INET, SOCK_RAW, IPPROTO_UDP)) == -1)
+		#else
+		if ((sock = socket(AF_PACKET, SOCK_RAW, IPPROTO_UDP)) == -1)
+		#endif
 			DieWithError("create RAW socket\n");
+
+
+		#ifndef DATALINK	// Если не нужно заполнять канальный уровень
+			struct sockaddr_in server_address;
+			socklen_t server_length = sizeof(struct sockaddr_in);
+			server_address.sin_family = AF_INET;
+			server_address.sin_port = htons(DST_PORT);
+			server_address.sin_addr.s_addr = inet_addr(DST_IP);
+		#else				// Если нужно заполнять канальный уровень
+			struct sockaddr_ll addr;
+			memset(&addr, 0, sizeof(addr));
+			addr.sll_family = AF_PACKET;//Always AF_PACKET. 
+			addr.sll_ifindex = 2;
+			addr.sll_halen = 6;
+			memcpy(addr.sll_addr, dmac, 6);
+		#endif
+		#ifdef NETWORK		// Если нужно заполнять сетевой уровень
+			const int one = 1;
+			const int *val = &one;
+			if(setsockopt(sock, IPPROTO_IP, IP_HDRINCL, val, sizeof(one)) < 0)
+				DieWithError("setsockopt\n");
+		#endif
+//		
+		
 			
-		/*	
-int one = 1;
-const int *val = &one;
-if(setsockopt(sock, IPPROTO_IP, IP_HDRINCL, val, sizeof(one)) < 0) {
-	perror("setsockopt() error");
-	//exit(-1);
-}
-else
-	printf("setsockopt() is OK.\n");
+		// Транспортный уровень. Заполняем всегда
+		data = make_udp(inet_addr(SRC_IP), inet_addr(DST_IP), SRC_PORT, DST_PORT, MSG, 4);
+		psize = 4 + sizeof(struct udp_header);
 
+		#ifndef TRANSPORT
+			// Сетевой уровень
+			data = make_ipv4(inet_addr(SRC_IP), inet_addr(DST_IP), data, psize);
+			psize += sizeof(struct ipv4_header);
 
-int msglen;
-struct sockaddr_in sockstr;
+				#ifdef DATALINK
+					// Канальный уровень
+					data = make_fr(dmac, smac, data, psize);
+					psize += sizeof(struct eth_header);
+				#endif
+		#endif
+
+/*		int msglen;
+		struct sockaddr_in sockstr;
 		sockstr.sin_family = AF_INET;
 		sockstr.sin_port = htons(SRC_PORT);
 		sockstr.sin_addr.s_addr = inet_addr(SRC_IP);
@@ -85,55 +116,35 @@ struct sockaddr_in sockstr;
 		//memset(msg, 0, MSG_SIZE);
 */
 
+		#ifdef TRANSPORT
+		
+		#elif NETWORK
+		
+		#elif DATALINK
+		
+		#endif
 
 
 
-		// Транспортный уровень
-		data = make_udp(inet_addr(SRC_IP), inet_addr(DST_IP), SRC_PORT, DST_PORT, MSG, 4);
-		psize = 4 + sizeof(struct udp_header);
-
-		// Сетевой уровень
-		data = make_ipv4(inet_addr(SRC_IP), inet_addr(DST_IP), data, psize);
-		psize += sizeof(struct ipv4_header);
-
-		// Канальный уровень
-		data = make_fr(dmac, smac, data, psize);
-		psize += sizeof(struct eth_header);
 
 		// Отправка
-		memset(&addr, 0, sizeof(addr));
-		addr.sll_family = AF_PACKET;//Always AF_PACKET. 
-		addr.sll_ifindex = 2;
-		addr.sll_halen = 6;
-		memcpy(addr.sll_addr, dmac, 6);
-/*
-//struct sockaddr_in sin;
-//sin.sin_family=AF_INET;
-//sin.sin_port = htons(SRC_PORT);
-//sin.sin_addr.s_addr = inet_addr(SRC_IP);
-
-	  // Filling server address structure. 
-	  struct sockaddr_in server_address;
-	  socklen_t server_length;
-	  server_length = sizeof(struct sockaddr_in);
-	  server_address.sin_family = AF_INET;
-	  server_address.sin_port = htons(DST_PORT);
-	  server_address.sin_addr.s_addr = inet_addr(DST_IP);*/
-
-		if (sendto(sock, data, psize, 0, (struct sockaddr *)&addr, sizeof(addr)) == -1) {
-	//	if (sendto(sock, data, psize, 0, (struct sockaddr *) &server_address, server_length) == -1) {
-		//sendto(sock,data,psize,0,(struct sockaddr *)&sin, sizeof(sin));
-			DieWithError("error sendto\n");
-			close(sock);
-		}
+		#ifndef DATALINK
+			if (sendto(sock, data, psize, 0, (struct sockaddr*)&server_address, server_length) == -1) {
+		#else
+			if (sendto(sock, data, psize, 0, (struct sockaddr *)&addr, sizeof(addr)) == -1) {
+		#endif
+				DieWithError("error sendto\n");
+				close(sock);
+			}
 		free(data);
 		
-		
-//				char buf[260];
-//		if ((msglen = recv(sock, buf, 260, 0)) == -1) {
-//			perror("recv");
-//		}
-//		if (msglen == 256) printf("OK\n"); else printf("neOK\n");
+/*		while (1) {
+			char buf[260];
+			if ((msglen = recv(sock, buf, 260, 0)) == -1) {
+				perror("recv");
+			}
+			if (msglen == 256) printf("OK\n"); else printf("%s neOK\n", buf);
+		}*/
 		sleep(1);
 		
 		return EXIT_SUCCESS;

@@ -1,5 +1,9 @@
+VAR = TRANSPORT		# Заполнить ручками транспортный уровень
+VAR = NETWORK		# Заполнить ручками сетевой уровень
+VAR = DATALINK		# Заполнить ручками канальный уровень
+
 CC = gcc
-CFLAGS = -std=c99 -O2 -g2 -Wall
+CFLAGS = -std=c99 -O2 -g2 -Wall -D$(VAR)
 LDFLAGS = -lpthread
 SOURCES = main.c other.c udp.c raw.c
 OBJECT_FILES = $(addprefix obj/, $(SOURCES:.c=.o))
