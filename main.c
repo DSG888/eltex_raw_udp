@@ -101,20 +101,19 @@ int main(int argc, char * argv[]) {
 				#endif
 		#endif
 
-/*		int msglen;
+		//int msglen;
+		#ifndef DATALINK
 		struct sockaddr_in sockstr;
 		sockstr.sin_family = AF_INET;
 		sockstr.sin_port = htons(SRC_PORT);
 		sockstr.sin_addr.s_addr = inet_addr(SRC_IP);
 		socklen_t socklen = (socklen_t) sizeof(sockstr);
-
-
 		if (bind(sock, (struct sockaddr*) &sockstr, socklen) == -1) {
 			perror("bind");
 		}
-
+		#endif
 		//memset(msg, 0, MSG_SIZE);
-*/
+
 
 		#ifdef TRANSPORT
 		
@@ -138,13 +137,19 @@ int main(int argc, char * argv[]) {
 			}
 		free(data);
 		
-/*		while (1) {
-			char buf[260];
-			if ((msglen = recv(sock, buf, 260, 0)) == -1) {
+		#ifndef DATALINK
+		while (1) {
+			int msglen = 0;
+			char buf[500];
+			if ((msglen = recv(sock, buf, 500, 0)) == -1) {
 				perror("recv");
 			}
-			if (msglen == 256) printf("OK\n"); else printf("%s neOK\n", buf);
-		}*/
+			//struct eth_header* fr = buf;
+			//struct ipv4_header* pack = (void*)buf+sizeof(struct eth_header);
+			//struct udp_header* pk = (void*)pack+sizeof(struct ipv4_header); // sizeof(struct ipv4_header);
+			if (msglen == 256+sizeof(struct udp_header)+sizeof(struct ipv4_header)) printf("Получена строка: %s\n", (uint8_t*)buf+sizeof(struct udp_header)+sizeof(struct ipv4_header)); else printf("Получен мусор длинной %d\n", msglen, (uint8_t*)buf+sizeof(struct udp_header)+sizeof(struct ipv4_header) );
+		}
+		#endif
 		sleep(1);
 		
 		return EXIT_SUCCESS;
