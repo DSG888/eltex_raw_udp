@@ -1,9 +1,7 @@
 #include "main.h"
 
 #define SRC_IP "172.16.8.100"	// IP источника
-#define DST_IP "172.16.8.10"	// IP назначения
 #define SRC_PORT 35120			// Порт источника
-#define DST_PORT 62000			// Порт назначения
 uint8_t smac[] = {0x94, 0xde, 0x80, 0x77, 0x13, 0xbf};	// MAC источника
 uint8_t dmac[] = {0x76, 0x27, 0xa0, 0xa0, 0x4a, 0x78};	// MAC назначения
 const uint8_t MSG[4] = {0xAA,0xAA,0,0};
@@ -52,8 +50,7 @@ int main(int argc, char * argv[]) {
 		int sock;
 		uint8_t* data;
 		int psize = 0;  // Размер данных
-		
-		// Открытие RAW сокета	//AF_INET	//AF_PACKET
+		// Открытие RAW сокета
 		#ifndef DATALINK	// Если не нужно заполнять канальный уровень
 		if ((sock = socket(AF_INET, SOCK_RAW, IPPROTO_UDP)) == -1)
 		#else
@@ -63,16 +60,17 @@ int main(int argc, char * argv[]) {
 
 
 		#ifndef DATALINK	// Если не нужно заполнять канальный уровень
-			struct sockaddr_in server_address;
-			socklen_t server_length = sizeof(struct sockaddr_in);
+			struct sockaddr_in addr;
+			memset(&addr, 0, sizeof(addr));
+			socklen_t server_length = sizeof(struct addr);
 			server_address.sin_family = AF_INET;
-			server_address.sin_port = htons(DST_PORT);
-			server_address.sin_addr.s_addr = inet_addr(DST_IP);
+			server_address.sin_port = htons(port);
+			server_address.sin_addr.s_addr = out_ip.s_addr;
 		#else				// Если нужно заполнять канальный уровень
 			struct sockaddr_ll addr;
 			memset(&addr, 0, sizeof(addr));
-			addr.sll_family = AF_PACKET;//Always AF_PACKET. 
-			addr.sll_ifindex = 2;
+			addr.sll_family = AF_PACKET;
+			addr.sll_ifindex = 2;	// FIXME
 			addr.sll_halen = 6;
 			memcpy(addr.sll_addr, dmac, 6);
 		#endif
@@ -82,16 +80,13 @@ int main(int argc, char * argv[]) {
 			if(setsockopt(sock, IPPROTO_IP, IP_HDRINCL, val, sizeof(one)) < 0)
 				DieWithError("setsockopt\n");
 		#endif
-//		
-		
-			
+		// Инкапсуляция данных
 		// Транспортный уровень. Заполняем всегда
-		data = make_udp(inet_addr(SRC_IP), inet_addr(DST_IP), SRC_PORT, DST_PORT, MSG, 4);
+		data = make_udp(inet_addr(SRC_IP), out_ip.s_addr, SRC_PORT, port, MSG, 4);
 		psize = 4 + sizeof(struct udp_header);
-
 		#ifndef TRANSPORT
 			// Сетевой уровень
-			data = make_ipv4(inet_addr(SRC_IP), inet_addr(DST_IP), data, psize);
+			data = make_ipv4(inet_addr(SRC_IP), out_ip.s_addr, data, psize);
 			psize += sizeof(struct ipv4_header);
 
 				#ifdef DATALINK
@@ -100,8 +95,7 @@ int main(int argc, char * argv[]) {
 					psize += sizeof(struct eth_header);
 				#endif
 		#endif
-
-		//int msglen;
+		
 		#ifndef DATALINK
 		struct sockaddr_in sockstr;
 		sockstr.sin_family = AF_INET;
@@ -112,29 +106,11 @@ int main(int argc, char * argv[]) {
 			perror("bind");
 		}
 		#endif
-		//memset(msg, 0, MSG_SIZE);
-
-
-		#ifdef TRANSPORT
-		
-		#elif NETWORK
-		
-		#elif DATALINK
-		
-		#endif
-
-
-
-
 		// Отправка
-		#ifndef DATALINK
-			if (sendto(sock, data, psize, 0, (struct sockaddr*)&server_address, server_length) == -1) {
-		#else
-			if (sendto(sock, data, psize, 0, (struct sockaddr *)&addr, sizeof(addr)) == -1) {
-		#endif
-				DieWithError("error sendto\n");
-				close(sock);
-			}
+		if (sendto(sock, data, psize, 0, (struct sockaddr*)&addr, sizeof(addr)) == -1) {
+			DieWithError("error sendto\n");
+			close(sock);
+		}
 		free(data);
 		
 		#ifndef DATALINK
@@ -151,7 +127,6 @@ int main(int argc, char * argv[]) {
 		}
 		#endif
 		sleep(1);
-		
 		return EXIT_SUCCESS;
 	}
 	// Ну основной поток ничего делать не будет
